@@ -41,8 +41,6 @@ type (
 	Config struct {
 		// 静态文件目录
 		Path string
-		// mount path
-		Mount string
 		// http cache control max age
 		MaxAge int
 		// http cache control s-maxage
@@ -130,8 +128,6 @@ func NewDefault(config Config) cod.Handler {
 
 // New create a static serve middleware
 func New(staticFile StaticFile, config Config) cod.Handler {
-	mount := config.Mount
-	mountLength := len(mount)
 	cacheArr := []string{
 		"public",
 	}
@@ -153,15 +149,20 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 		if skipper(c) {
 			return c.Next()
 		}
+		file := ""
+		// 从第一个参数获取文件名
+		if c.Params != nil {
+			for _, value := range c.Params {
+				if value != "" {
+					file = value
+				}
+			}
+		}
+
 		url := c.Request.URL
 
-		file := url.Path
-		if mount != "" {
-			// 如果指定了mount，但请求不是以mount开头，则跳过
-			if !strings.HasPrefix(file, mount) {
-				return c.Next()
-			}
-			file = file[mountLength:]
+		if file == "" {
+			file = url.Path
 		}
 
 		// 检查文件（路径）是否包括.

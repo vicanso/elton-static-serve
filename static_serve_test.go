@@ -114,28 +114,6 @@ func TestStaticServe(t *testing.T) {
 		}
 	})
 
-	t.Run("pass mount", func(t *testing.T) {
-		fn := New(staticFile, Config{
-			Path:  staticPath,
-			Mount: "/static",
-		})
-		res := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "/index.html", nil)
-		c := cod.NewContext(res, req)
-		done := false
-		c.Next = func() error {
-			done = true
-			return nil
-		}
-		err := fn(c)
-		if err != nil {
-			t.Fatalf("pass mount fail, %v", err)
-		}
-		if !done || c.StatusCode != 0 {
-			t.Fatalf("pass mount fail")
-		}
-	})
-
 	t.Run("not found return error", func(t *testing.T) {
 		fn := New(staticFile, Config{
 			Path: staticPath,
@@ -171,12 +149,14 @@ func TestStaticServe(t *testing.T) {
 
 	t.Run("not compresss", func(t *testing.T) {
 		fn := New(staticFile, Config{
-			Path:  staticPath,
-			Mount: "/static",
+			Path: staticPath,
 		})
 		req := httptest.NewRequest("GET", "/static/banner.jpg", nil)
 		res := httptest.NewRecorder()
 		c := cod.NewContext(res, req)
+		c.Params = map[string]string{
+			"file": "banner.jpg",
+		}
 		c.Next = func() error {
 			return nil
 		}
@@ -188,10 +168,9 @@ func TestStaticServe(t *testing.T) {
 
 	t.Run("get index.html", func(t *testing.T) {
 		fn := New(staticFile, Config{
-			Path:  staticPath,
-			Mount: "/static",
+			Path: staticPath,
 		})
-		req := httptest.NewRequest("GET", "/static/index.html?a=1", nil)
+		req := httptest.NewRequest("GET", "/index.html?a=1", nil)
 		res := httptest.NewRecorder()
 		c := cod.NewContext(res, req)
 		c.Next = func() error {
