@@ -67,8 +67,8 @@ type (
 )
 
 const (
-	// ErrCategoryStaticServe static serve error category
-	ErrCategoryStaticServe = "cod-static-serve"
+	// ErrCategory static serve error category
+	ErrCategory = "cod-static-serve"
 )
 
 var (
@@ -107,7 +107,7 @@ func getStaticServeError(message string, statusCode int) *hes.Error {
 	return &hes.Error{
 		StatusCode: statusCode,
 		Message:    message,
-		Category:   ErrCategoryStaticServe,
+		Category:   ErrCategory,
 	}
 }
 
@@ -202,7 +202,7 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 			he, ok := e.(*hes.Error)
 			if !ok {
 				he = hes.NewWithErrorStatusCode(e, http.StatusInternalServerError)
-				he.Category = ErrCategoryStaticServe
+				he.Category = ErrCategory
 			}
 			err = he
 			return
