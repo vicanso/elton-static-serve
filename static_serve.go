@@ -150,13 +150,10 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 			return c.Next()
 		}
 		file := ""
+		rawParams := c.RawParams
 		// 从第一个参数获取文件名
-		if c.Params != nil {
-			for _, value := range c.Params {
-				if value != "" {
-					file = value
-				}
-			}
+		if len(rawParams) > 0 {
+			file = rawParams[0].Value
 		}
 
 		url := c.Request.URL

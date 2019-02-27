@@ -43,8 +43,6 @@ func main() {
 
 	// static file route
 	d.GET("/static/*file", staticServe.New(sf, staticServe.Config{
-		// mount path, file's name will remove mount
-		Mount: "/static",
 		// 客户端缓存一年
 		MaxAge: 365 * 24 * 3600,
 		// 缓存服务器缓存一个小时
