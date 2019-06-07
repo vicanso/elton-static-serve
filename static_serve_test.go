@@ -1,12 +1,15 @@
 package staticserve
 
 import (
+	"errors"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
+	"github.com/stretchr/testify/assert"
 	"github.com/vicanso/cod"
 )
 
@@ -26,8 +29,14 @@ func (m *MockStaticFile) Exists(file string) bool {
 }
 
 func (m *MockStaticFile) Get(file string) ([]byte, error) {
+	if file == staticPath+"/error" {
+		return nil, errors.New("abcd")
+	}
 	if file == staticPath+"/index.html" {
 		return []byte("<html>xxx</html>"), nil
+	}
+	if file == staticPath+"/banner.jpg" {
+		return []byte("image data"), nil
 	}
 	return []byte("abcd"), nil
 }
@@ -60,35 +69,40 @@ func (mf *MockFileStat) Sys() interface{} {
 	return nil
 }
 
+func TestGenerateETag(t *testing.T) {
+	assert := assert.New(t)
+	assert.Equal(generateETag([]byte("")), `"0-2jmj7l5rSw0yVb_vlWAYkK_YBwk="`)
+	assert.Equal(generateETag([]byte("abc")), `"3-qZk-NkcGgWq6PiVxeFDCbJzQ2J0="`)
+}
+
 func TestFS(t *testing.T) {
 	file := os.Args[0]
 	fs := FS{}
-	if !fs.Exists(file) {
-		t.Fatalf("file should be exists")
-	}
-	fileInfo := fs.Stat(file)
-	if fileInfo == nil {
-		t.Fatalf("stat file fail")
-	}
+	t.Run("normal", func(t *testing.T) {
+		assert := assert.New(t)
+		assert.NotNil(NewDefault(Config{}))
+		assert.True(fs.Exists(file), "file should be exists")
 
-	buf, err := fs.Get(file)
-	if err != nil || len(buf) == 0 {
-		t.Fatalf("get file fail, %v", err)
-	}
+		fileInfo := fs.Stat(file)
+		assert.NotNil(fileInfo, "stat of file shouldn't be nil")
+
+		buf, err := fs.Get(file)
+		assert.Nil(err)
+		assert.NotEmpty(buf)
+	})
 
 	t.Run("out of path", func(t *testing.T) {
+		assert := assert.New(t)
 		tfs := FS{}
-		if tfs.Stat("/b") != nil {
-			t.Fatalf("out of path should return nil stat")
-		}
-		if tfs.Exists("/b") {
-			t.Fatalf("file is not exists")
-		}
+
+		assert.Nil(tfs.Stat("/b"), "out of path should return nil stat")
+		assert.False(tfs.Exists("/b"), "file should be not exists")
 	})
 }
 func TestStaticServe(t *testing.T) {
 	staticFile := &MockStaticFile{}
 	t.Run("not allow query string", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path:            staticPath,
 			DenyQueryString: true,
@@ -96,12 +110,11 @@ func TestStaticServe(t *testing.T) {
 		req := httptest.NewRequest("GET", "/index.html?a=1", nil)
 		c := cod.NewContext(nil, req)
 		err := fn(c)
-		if err != ErrNotAllowQueryString {
-			t.Fatalf("should return not allow query string error")
-		}
+		assert.Equal(err, ErrNotAllowQueryString, "should return not allow query string error")
 	})
 
 	t.Run("not allow dot file", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path:    staticPath,
 			DenyDot: true,
@@ -109,12 +122,11 @@ func TestStaticServe(t *testing.T) {
 		req := httptest.NewRequest("GET", "/.index.html", nil)
 		c := cod.NewContext(nil, req)
 		err := fn(c)
-		if err != ErrNotAllowAccessDot {
-			t.Fatalf("should return not allow dot error")
-		}
+		assert.Equal(err, ErrNotAllowAccessDot, "should return not allow dot error")
 	})
 
 	t.Run("not found return error", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path: staticPath,
 		})
@@ -124,12 +136,11 @@ func TestStaticServe(t *testing.T) {
 			return nil
 		}
 		err := fn(c)
-		if err != ErrNotFound {
-			t.Fatalf("should return not found error")
-		}
+		assert.Equal(err, ErrNotFound, "should return not found error")
 	})
 
 	t.Run("not found pass to next", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path:         staticPath,
 			NotFoundNext: true,
@@ -142,31 +153,35 @@ func TestStaticServe(t *testing.T) {
 			return nil
 		}
 		err := fn(c)
-		if err != nil || !done {
-			t.Fatalf("not found pass fail, %v", err)
-		}
+		assert.Nil(err)
+		assert.True(done)
 	})
 
 	t.Run("not compresss", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path: staticPath,
 		})
 		req := httptest.NewRequest("GET", "/static/banner.jpg", nil)
 		res := httptest.NewRecorder()
 		c := cod.NewContext(res, req)
-		c.Params = map[string]string{
-			"file": "banner.jpg",
+		c.RawParams = httprouter.Params{
+			httprouter.Param{
+				Key:   "file",
+				Value: "banner.jpg",
+			},
 		}
 		c.Next = func() error {
 			return nil
 		}
 		err := fn(c)
-		if err != nil || c.GetHeader(cod.HeaderContentEncoding) == "gzip" {
-			t.Fatalf("serve image fail, %v", err)
-		}
+		assert.Nil(err)
+		assert.NotEqual(c.GetHeader(cod.HeaderContentEncoding), "gzip")
+		assert.Equal(c.GetHeader(cod.HeaderETag), `"a-1oFGwuX-Q3qfLHqK_7iCcc_0YYI="`)
 	})
 
 	t.Run("get index.html", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path: staticPath,
 		})
@@ -177,20 +192,16 @@ func TestStaticServe(t *testing.T) {
 			return nil
 		}
 		err := fn(c)
-		if err != nil {
-			t.Fatalf("serve index.html fail, %v", err)
-		}
-		if c.GetHeader(cod.HeaderETag) != `"10-FKjW3bSjaJvr_QYzQcHNFRn-rxc="` ||
-			c.GetHeader(cod.HeaderLastModified) == "" ||
-			c.GetHeader("Content-Type") != "text/html; charset=utf-8" {
-			t.Fatalf("set header fail")
-		}
-		if c.BodyBuffer.Len() != 16 {
-			t.Fatalf("response body fail")
-		}
+		assert.Nil(err, "serve index.html fail")
+
+		assert.Equal(c.GetHeader(cod.HeaderETag), `"10-FKjW3bSjaJvr_QYzQcHNFRn-rxc="`, "generate etag fail")
+		assert.NotEmpty(c.GetHeader(cod.HeaderLastModified), "last modified shouldn't be empty")
+		assert.Equal(c.GetHeader("Content-Type"), "text/html; charset=utf-8")
+		assert.Equal(c.BodyBuffer.Len(), 16, "response compress body fail")
 	})
 
 	t.Run("set custom header", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path: staticPath,
 			Header: map[string]string{
@@ -204,12 +215,12 @@ func TestStaticServe(t *testing.T) {
 			return nil
 		}
 		err := fn(c)
-		if err != nil || c.GetHeader("X-IDC") != "GZ" {
-			t.Fatalf("set custom header fail, %v", err)
-		}
+		assert.Nil(err)
+		assert.Equal(c.GetHeader("X-IDC"), "GZ", "set custom header fail")
 	})
 
 	t.Run("set (s)max-age", func(t *testing.T) {
+		assert := assert.New(t)
 		fn := New(staticFile, Config{
 			Path:    staticPath,
 			MaxAge:  24 * 3600,
@@ -222,8 +233,42 @@ func TestStaticServe(t *testing.T) {
 			return nil
 		}
 		err := fn(c)
-		if err != nil || c.GetHeader(cod.HeaderCacheControl) != "public, max-age=86400, s-maxage=300" {
-			t.Fatalf("set max age header fail, %v", err)
+		assert.Nil(err)
+		assert.Equal(c.GetHeader(cod.HeaderCacheControl), "public, max-age=86400, s-maxage=300", "set max age header fail")
+	})
+
+	t.Run("out of path", func(t *testing.T) {
+		assert := assert.New(t)
+		fn := New(staticFile, Config{
+			Path:    staticPath,
+			MaxAge:  24 * 3600,
+			SMaxAge: 300,
+		})
+		req := httptest.NewRequest("GET", "/index.html", nil)
+		req.URL.Path = "../../index.html"
+		res := httptest.NewRecorder()
+		c := cod.NewContext(res, req)
+		c.Next = func() error {
+			return nil
 		}
+		err := fn(c)
+		assert.Equal(err.Error(), "category=cod-static-serve, message=out of path", "out of path should return error")
+	})
+
+	t.Run("get file error", func(t *testing.T) {
+		assert := assert.New(t)
+		fn := New(staticFile, Config{
+			Path:    staticPath,
+			MaxAge:  24 * 3600,
+			SMaxAge: 300,
+		})
+		req := httptest.NewRequest("GET", "/error", nil)
+		res := httptest.NewRecorder()
+		c := cod.NewContext(res, req)
+		c.Next = func() error {
+			return nil
+		}
+		err := fn(c)
+		assert.Equal(err.Error(), "category=cod-static-serve, message=abcd", "get file fail should return error")
 	})
 }

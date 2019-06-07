@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/vicanso/cod"
 	"github.com/vicanso/hes"
@@ -113,12 +114,12 @@ func getStaticServeError(message string, statusCode int) *hes.Error {
 func generateETag(buf []byte) string {
 	size := len(buf)
 	if size == 0 {
-		return "\"0-2jmj7l5rSw0yVb_vlWAYkK_YBwk=\""
+		return `"0-2jmj7l5rSw0yVb_vlWAYkK_YBwk="`
 	}
 	h := sha1.New()
 	h.Write(buf)
 	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	return fmt.Sprintf("\"%x-%s\"", size, hash)
+	return fmt.Sprintf(`"%x-%s"`, size, hash)
 }
 
 // NewDefault create a static server milldeware use FS
@@ -226,4 +227,21 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 		c.BodyBuffer = bytes.NewBuffer(buf)
 		return c.Next()
 	}
+}
+
+// https://stackoverflow.com/questions/50120427/fail-unit-tests-if-coverage-is-below-certain-percentage
+func TestMain(m *testing.M) {
+	// call flag.Parse() here if TestMain uses flags
+	rc := m.Run()
+
+	// rc 0 means we've passed,
+	// and CoverMode will be non empty if run with -cover
+	if rc == 0 && testing.CoverMode() != "" {
+		c := testing.Coverage()
+		if c < 0.9 {
+			fmt.Println("Tests passed but coverage failed at", c)
+			rc = -1
+		}
+	}
+	os.Exit(rc)
 }
