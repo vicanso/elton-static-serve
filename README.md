@@ -1,5 +1,8 @@
 # cod-static-serve
 
+[![Build Status](https://img.shields.io/travis/vicanso/cod-static-serve.svg?label=linux+build)](https://travis-ci.org/vicanso/cod-static-serve)
+
+
 Static serve for cod, it use to serve static file, such as html, image and etc.
 
 ```go
