@@ -58,7 +58,8 @@ func (mf *MockFileStat) Mode() os.FileMode {
 }
 
 func (mf *MockFileStat) ModTime() time.Time {
-	return time.Now()
+	t, _ := time.Parse(time.RFC3339, "2019-06-08T02:17:54Z")
+	return t
 }
 
 func (mf *MockFileStat) IsDir() bool {
@@ -160,7 +161,8 @@ func TestStaticServe(t *testing.T) {
 	t.Run("not compresss", func(t *testing.T) {
 		assert := assert.New(t)
 		fn := New(staticFile, Config{
-			Path: staticPath,
+			Path:             staticPath,
+			EnableStrongETag: true,
 		})
 		req := httptest.NewRequest("GET", "/static/banner.jpg", nil)
 		res := httptest.NewRecorder()
@@ -194,7 +196,7 @@ func TestStaticServe(t *testing.T) {
 		err := fn(c)
 		assert.Nil(err, "serve index.html fail")
 
-		assert.Equal(c.GetHeader(cod.HeaderETag), `"10-FKjW3bSjaJvr_QYzQcHNFRn-rxc="`, "generate etag fail")
+		assert.Equal(c.GetHeader(cod.HeaderETag), `W/"400-5cfb1ad2"`, "generate etag fail")
 		assert.NotEmpty(c.GetHeader(cod.HeaderLastModified), "last modified shouldn't be empty")
 		assert.Equal(c.GetHeader("Content-Type"), "text/html; charset=utf-8")
 		assert.Equal(c.BodyBuffer.Len(), 16, "response compress body fail")

@@ -52,6 +52,8 @@ type (
 		DenyQueryString bool
 		// 是否禁止文件路径以.开头（因为这些文件有可能包括重要信息）
 		DenyDot bool
+		// 是否使用strong etag
+		EnableStrongETag bool
 		// 禁止生成ETag
 		DisableETag bool
 		// 禁止生成 last-modifed
@@ -207,9 +209,18 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 			return
 		}
 		if !config.DisableETag {
-			eTag := generateETag(buf)
-			c.SetHeader(cod.HeaderETag, eTag)
+			if config.EnableStrongETag {
+				eTag := generateETag(buf)
+				c.SetHeader(cod.HeaderETag, eTag)
+			} else {
+				fileInfo := staticFile.Stat(file)
+				if fileInfo != nil {
+					eTag := fmt.Sprintf(`W/"%x-%x"`, fileInfo.Size(), fileInfo.ModTime().Unix())
+					c.SetHeader(cod.HeaderETag, eTag)
+				}
+			}
 		}
+
 		if !config.DisableLastModified {
 			fileInfo := staticFile.Stat(file)
 			if fileInfo != nil {
