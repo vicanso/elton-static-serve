@@ -19,13 +19,13 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"testing"
 
 	"github.com/vicanso/cod"
 	"github.com/vicanso/hes"
@@ -37,6 +37,7 @@ type (
 		Exists(string) bool
 		Get(string) ([]byte, error)
 		Stat(string) os.FileInfo
+		NewReader(string) (io.Reader, error)
 	}
 	// Config static serve config
 	Config struct {
@@ -101,6 +102,11 @@ func (fs *FS) Stat(file string) os.FileInfo {
 func (fs *FS) Get(file string) (buf []byte, err error) {
 	buf, err = ioutil.ReadFile(file)
 	return
+}
+
+// NewReader new a reader for file
+func (fs *FS) NewReader(file string) (io.Reader, error) {
+	return os.Open(file)
 }
 
 // getStaticServeError 获取static serve的出错
@@ -198,19 +204,25 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 		}
 
 		c.SetContentTypeByExt(file)
-		buf, e := staticFile.Get(file)
-		if e != nil {
-			he, ok := e.(*hes.Error)
-			if !ok {
-				he = hes.NewWithErrorStatusCode(e, http.StatusInternalServerError)
-				he.Category = ErrCategory
+		var fileBuf []byte
+		// strong etag需要读取文件内容计算etag
+		if !config.DisableETag && config.EnableStrongETag {
+			buf, e := staticFile.Get(file)
+			if e != nil {
+				he, ok := e.(*hes.Error)
+				if !ok {
+					he = hes.NewWithErrorStatusCode(e, http.StatusInternalServerError)
+					he.Category = ErrCategory
+				}
+				err = he
+				return
 			}
-			err = he
-			return
+			fileBuf = buf
 		}
+
 		if !config.DisableETag {
 			if config.EnableStrongETag {
-				eTag := generateETag(buf)
+				eTag := generateETag(fileBuf)
 				c.SetHeader(cod.HeaderETag, eTag)
 			} else {
 				fileInfo := staticFile.Stat(file)
@@ -235,24 +247,16 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 		if cacheControl != "" {
 			c.SetHeader(cod.HeaderCacheControl, cacheControl)
 		}
-		c.BodyBuffer = bytes.NewBuffer(buf)
+		if fileBuf != nil {
+			c.BodyBuffer = bytes.NewBuffer(fileBuf)
+		} else {
+			r, e := staticFile.NewReader(file)
+			if e != nil {
+				err = getStaticServeError(e.Error(), http.StatusBadRequest)
+				return
+			}
+			c.Body = r
+		}
 		return c.Next()
 	}
-}
-
-// https://stackoverflow.com/questions/50120427/fail-unit-tests-if-coverage-is-below-certain-percentage
-func TestMain(m *testing.M) {
-	// call flag.Parse() here if TestMain uses flags
-	rc := m.Run()
-
-	// rc 0 means we've passed,
-	// and CoverMode will be non empty if run with -cover
-	if rc == 0 && testing.CoverMode() != "" {
-		c := testing.Coverage()
-		if c < 0.9 {
-			fmt.Println("Tests passed but coverage failed at", c)
-			rc = -1
-		}
-	}
-	os.Exit(rc)
 }

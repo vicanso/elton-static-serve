@@ -1,7 +1,10 @@
 package staticserve
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -43,6 +46,15 @@ func (m *MockStaticFile) Get(file string) ([]byte, error) {
 
 func (m *MockStaticFile) Stat(file string) os.FileInfo {
 	return &MockFileStat{}
+}
+
+func (m *MockStaticFile) NewReader(file string) (io.Reader, error) {
+	buf, err := m.Get(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.NewReader(buf), nil
 }
 
 func (mf *MockFileStat) Name() string {
@@ -199,7 +211,7 @@ func TestStaticServe(t *testing.T) {
 		assert.Equal(c.GetHeader(cod.HeaderETag), `W/"400-5cfb1ad2"`, "generate etag fail")
 		assert.NotEmpty(c.GetHeader(cod.HeaderLastModified), "last modified shouldn't be empty")
 		assert.Equal(c.GetHeader("Content-Type"), "text/html; charset=utf-8")
-		assert.Equal(c.BodyBuffer.Len(), 16, "response compress body fail")
+		assert.True(c.IsReaderBody())
 	})
 
 	t.Run("set custom header", func(t *testing.T) {
@@ -273,4 +285,21 @@ func TestStaticServe(t *testing.T) {
 		err := fn(c)
 		assert.Equal(err.Error(), "category=cod-static-serve, message=abcd", "get file fail should return error")
 	})
+}
+
+// https://stackoverflow.com/questions/50120427/fail-unit-tests-if-coverage-is-below-certain-percentage
+func TestMain(m *testing.M) {
+	// call flag.Parse() here if TestMain uses flags
+	rc := m.Run()
+
+	// rc 0 means we've passed,
+	// and CoverMode will be non empty if run with -cover
+	if rc == 0 && testing.CoverMode() != "" {
+		c := testing.Coverage()
+		if c < 0.9 {
+			fmt.Println("Tests passed but coverage failed at", c)
+			rc = -1
+		}
+	}
+	os.Exit(rc)
 }

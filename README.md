@@ -57,3 +57,32 @@ func main() {
 	d.ListenAndServe(":7001")
 }
 ```
+
+
+```go
+package main
+
+import (
+	"github.com/vicanso/cod"
+
+	staticServe "github.com/vicanso/cod-static-serve"
+)
+
+func main() {
+	d := cod.New()
+
+	sf := new(staticServe.FS)
+	// static file route
+	d.GET("/*file", staticServe.New(sf, staticServe.Config{
+		Path: "/tmp",
+		// 客户端缓存一年
+		MaxAge: 365 * 24 * 3600,
+		// 缓存服务器缓存一个小时
+		SMaxAge:             60 * 60,
+		DenyQueryString:     true,
+		DisableLastModified: true,
+	}))
+
+	d.ListenAndServe(":7001")
+}
+```
