@@ -88,6 +88,8 @@ func main() {
 		SMaxAge:             60 * 60,
 		DenyQueryString:     true,
 		DisableLastModified: true,
+		// packr不支持Stat，因此需要用强ETag 
+		EnableStrongETag: true,
 	}))
 
 	d.ListenAndServe(":7001")
