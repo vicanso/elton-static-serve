@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vicanso/cod"
+	"github.com/vicanso/elton"
 	"github.com/vicanso/hes"
 )
 
@@ -61,7 +61,7 @@ type (
 		DisableLastModified bool
 		// 如果404，是否调用next执行后续的中间件（默认为不执行，返回404错误）
 		NotFoundNext bool
-		Skipper      cod.Skipper
+		Skipper      elton.Skipper
 	}
 	// FS file system
 	FS struct {
@@ -70,7 +70,7 @@ type (
 
 const (
 	// ErrCategory static serve error category
-	ErrCategory = "cod-static-serve"
+	ErrCategory = "elton-static-serve"
 )
 
 var (
@@ -131,12 +131,12 @@ func generateETag(buf []byte) string {
 }
 
 // NewDefault create a static server milldeware use FS
-func NewDefault(config Config) cod.Handler {
+func NewDefault(config Config) elton.Handler {
 	return New(&FS{}, config)
 }
 
 // New create a static serve middleware
-func New(staticFile StaticFile, config Config) cod.Handler {
+func New(staticFile StaticFile, config Config) elton.Handler {
 	cacheArr := []string{
 		"public",
 	}
@@ -152,9 +152,9 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 	}
 	skipper := config.Skipper
 	if skipper == nil {
-		skipper = cod.DefaultSkipper
+		skipper = elton.DefaultSkipper
 	}
-	return func(c *cod.Context) (err error) {
+	return func(c *elton.Context) (err error) {
 		if skipper(c) {
 			return c.Next()
 		}
@@ -223,12 +223,12 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 		if !config.DisableETag {
 			if config.EnableStrongETag {
 				eTag := generateETag(fileBuf)
-				c.SetHeader(cod.HeaderETag, eTag)
+				c.SetHeader(elton.HeaderETag, eTag)
 			} else {
 				fileInfo := staticFile.Stat(file)
 				if fileInfo != nil {
 					eTag := fmt.Sprintf(`W/"%x-%x"`, fileInfo.Size(), fileInfo.ModTime().Unix())
-					c.SetHeader(cod.HeaderETag, eTag)
+					c.SetHeader(elton.HeaderETag, eTag)
 				}
 			}
 		}
@@ -237,7 +237,7 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 			fileInfo := staticFile.Stat(file)
 			if fileInfo != nil {
 				lmd := fileInfo.ModTime().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
-				c.SetHeader(cod.HeaderLastModified, lmd)
+				c.SetHeader(elton.HeaderLastModified, lmd)
 			}
 		}
 
@@ -245,7 +245,7 @@ func New(staticFile StaticFile, config Config) cod.Handler {
 			c.SetHeader(k, v)
 		}
 		if cacheControl != "" {
-			c.SetHeader(cod.HeaderCacheControl, cacheControl)
+			c.SetHeader(elton.HeaderCacheControl, cacheControl)
 		}
 		if fileBuf != nil {
 			c.BodyBuffer = bytes.NewBuffer(fileBuf)

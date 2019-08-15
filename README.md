@@ -1,9 +1,9 @@
-# cod-static-serve
+# elton-static-serve
 
-[![Build Status](https://img.shields.io/travis/vicanso/cod-static-serve.svg?label=linux+build)](https://travis-ci.org/vicanso/cod-static-serve)
+[![Build Status](https://img.shields.io/travis/vicanso/elton-static-serve.svg?label=linux+build)](https://travis-ci.org/vicanso/elton-static-serve)
 
 
-Static serve for cod, it use to serve static file, such as html, image and etc.
+Static serve for elton, it use to serve static file, such as html, image and etc.
 
 ```go
 package main
@@ -12,9 +12,9 @@ import (
 	"os"
 
 	packr "github.com/gobuffalo/packr/v2"
-	"github.com/vicanso/cod"
+	"github.com/vicanso/elton"
 
-	staticServe "github.com/vicanso/cod-static-serve"
+	staticServe "github.com/vicanso/elton-static-serve"
 )
 
 var (
@@ -45,7 +45,7 @@ func (sf *staticFile) NewReader(file string) (io.Reader, error) {
 }
 
 func main() {
-	d := cod.New()
+	d := elton.New()
 
 	sf := &staticFile{
 		box: box,
@@ -70,13 +70,13 @@ func main() {
 package main
 
 import (
-	"github.com/vicanso/cod"
+	"github.com/vicanso/elton"
 
-	staticServe "github.com/vicanso/cod-static-serve"
+	staticServe "github.com/vicanso/elton-static-serve"
 )
 
 func main() {
-	d := cod.New()
+	d := elton.New()
 
 	sf := new(staticServe.FS)
 	// static file route

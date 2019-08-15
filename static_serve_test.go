@@ -13,7 +13,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
-	"github.com/vicanso/cod"
+	"github.com/vicanso/elton"
 )
 
 const (
@@ -121,7 +121,7 @@ func TestStaticServe(t *testing.T) {
 			DenyQueryString: true,
 		})
 		req := httptest.NewRequest("GET", "/index.html?a=1", nil)
-		c := cod.NewContext(nil, req)
+		c := elton.NewContext(nil, req)
 		err := fn(c)
 		assert.Equal(err, ErrNotAllowQueryString, "should return not allow query string error")
 	})
@@ -133,7 +133,7 @@ func TestStaticServe(t *testing.T) {
 			DenyDot: true,
 		})
 		req := httptest.NewRequest("GET", "/.index.html", nil)
-		c := cod.NewContext(nil, req)
+		c := elton.NewContext(nil, req)
 		err := fn(c)
 		assert.Equal(err, ErrNotAllowAccessDot, "should return not allow dot error")
 	})
@@ -144,7 +144,7 @@ func TestStaticServe(t *testing.T) {
 			Path: staticPath,
 		})
 		req := httptest.NewRequest("GET", "/notfound.html", nil)
-		c := cod.NewContext(nil, req)
+		c := elton.NewContext(nil, req)
 		c.Next = func() error {
 			return nil
 		}
@@ -159,7 +159,7 @@ func TestStaticServe(t *testing.T) {
 			NotFoundNext: true,
 		})
 		req := httptest.NewRequest("GET", "/notfound.html", nil)
-		c := cod.NewContext(nil, req)
+		c := elton.NewContext(nil, req)
 		done := false
 		c.Next = func() error {
 			done = true
@@ -178,7 +178,7 @@ func TestStaticServe(t *testing.T) {
 		})
 		req := httptest.NewRequest("GET", "/static/banner.jpg", nil)
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.RawParams = httprouter.Params{
 			httprouter.Param{
 				Key:   "file",
@@ -190,8 +190,8 @@ func TestStaticServe(t *testing.T) {
 		}
 		err := fn(c)
 		assert.Nil(err)
-		assert.NotEqual(c.GetHeader(cod.HeaderContentEncoding), "gzip")
-		assert.Equal(c.GetHeader(cod.HeaderETag), `"a-1oFGwuX-Q3qfLHqK_7iCcc_0YYI="`)
+		assert.NotEqual(c.GetHeader(elton.HeaderContentEncoding), "gzip")
+		assert.Equal(c.GetHeader(elton.HeaderETag), `"a-1oFGwuX-Q3qfLHqK_7iCcc_0YYI="`)
 	})
 
 	t.Run("get index.html", func(t *testing.T) {
@@ -201,15 +201,15 @@ func TestStaticServe(t *testing.T) {
 		})
 		req := httptest.NewRequest("GET", "/index.html?a=1", nil)
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.Next = func() error {
 			return nil
 		}
 		err := fn(c)
 		assert.Nil(err, "serve index.html fail")
 
-		assert.Equal(c.GetHeader(cod.HeaderETag), `W/"400-5cfb1ad2"`, "generate etag fail")
-		assert.NotEmpty(c.GetHeader(cod.HeaderLastModified), "last modified shouldn't be empty")
+		assert.Equal(c.GetHeader(elton.HeaderETag), `W/"400-5cfb1ad2"`, "generate etag fail")
+		assert.NotEmpty(c.GetHeader(elton.HeaderLastModified), "last modified shouldn't be empty")
 		assert.Equal(c.GetHeader("Content-Type"), "text/html; charset=utf-8")
 		assert.True(c.IsReaderBody())
 	})
@@ -224,7 +224,7 @@ func TestStaticServe(t *testing.T) {
 		})
 		req := httptest.NewRequest("GET", "/index.html", nil)
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.Next = func() error {
 			return nil
 		}
@@ -242,13 +242,13 @@ func TestStaticServe(t *testing.T) {
 		})
 		req := httptest.NewRequest("GET", "/index.html", nil)
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.Next = func() error {
 			return nil
 		}
 		err := fn(c)
 		assert.Nil(err)
-		assert.Equal(c.GetHeader(cod.HeaderCacheControl), "public, max-age=86400, s-maxage=300", "set max age header fail")
+		assert.Equal(c.GetHeader(elton.HeaderCacheControl), "public, max-age=86400, s-maxage=300", "set max age header fail")
 	})
 
 	t.Run("out of path", func(t *testing.T) {
@@ -261,12 +261,12 @@ func TestStaticServe(t *testing.T) {
 		req := httptest.NewRequest("GET", "/index.html", nil)
 		req.URL.Path = "../../index.html"
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.Next = func() error {
 			return nil
 		}
 		err := fn(c)
-		assert.Equal(err.Error(), "category=cod-static-serve, message=out of path", "out of path should return error")
+		assert.Equal(err.Error(), "category=elton-static-serve, message=out of path", "out of path should return error")
 	})
 
 	t.Run("get file error", func(t *testing.T) {
@@ -278,12 +278,12 @@ func TestStaticServe(t *testing.T) {
 		})
 		req := httptest.NewRequest("GET", "/error", nil)
 		res := httptest.NewRecorder()
-		c := cod.NewContext(res, req)
+		c := elton.NewContext(res, req)
 		c.Next = func() error {
 			return nil
 		}
 		err := fn(c)
-		assert.Equal(err.Error(), "category=cod-static-serve, message=abcd", "get file fail should return error")
+		assert.Equal(err.Error(), "category=elton-static-serve, message=abcd", "get file fail should return error")
 	})
 }
 
