@@ -9,6 +9,8 @@ Static serve for elton, it use to serve static file, such as html, image and etc
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
 
 	packr "github.com/gobuffalo/packr/v2"
@@ -18,7 +20,7 @@ import (
 )
 
 var (
-	box = packr.New("asset", "./web")
+	box = packr.New("asset", "./")
 )
 
 type (
