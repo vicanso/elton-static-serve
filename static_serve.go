@@ -125,7 +125,10 @@ func generateETag(buf []byte) string {
 		return `"0-2jmj7l5rSw0yVb_vlWAYkK_YBwk="`
 	}
 	h := sha1.New()
-	h.Write(buf)
+	_, err := h.Write(buf)
+	if err != nil {
+		return ""
+	}
 	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
 	return fmt.Sprintf(`"%x-%s"`, size, hash)
 }
@@ -223,7 +226,9 @@ func New(staticFile StaticFile, config Config) elton.Handler {
 		if !config.DisableETag {
 			if config.EnableStrongETag {
 				eTag := generateETag(fileBuf)
-				c.SetHeader(elton.HeaderETag, eTag)
+				if eTag != "" {
+					c.SetHeader(elton.HeaderETag, eTag)
+				}
 			} else {
 				fileInfo := staticFile.Stat(file)
 				if fileInfo != nil {

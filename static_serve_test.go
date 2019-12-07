@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 	"github.com/vicanso/elton"
 )
@@ -25,10 +24,7 @@ type MockStaticFile struct {
 type MockFileStat struct{}
 
 func (m *MockStaticFile) Exists(file string) bool {
-	if strings.HasSuffix(file, "notfound.html") {
-		return false
-	}
-	return true
+	return !strings.HasSuffix(file, "notfound.html")
 }
 
 func (m *MockStaticFile) Get(file string) ([]byte, error) {
@@ -176,15 +172,9 @@ func TestStaticServe(t *testing.T) {
 			Path:             staticPath,
 			EnableStrongETag: true,
 		})
-		req := httptest.NewRequest("GET", "/static/banner.jpg", nil)
+		req := httptest.NewRequest("GET", "/banner.jpg", nil)
 		res := httptest.NewRecorder()
 		c := elton.NewContext(res, req)
-		c.RawParams = httprouter.Params{
-			httprouter.Param{
-				Key:   "file",
-				Value: "banner.jpg",
-			},
-		}
 		c.Next = func() error {
 			return nil
 		}
@@ -296,7 +286,7 @@ func TestMain(m *testing.M) {
 	// and CoverMode will be non empty if run with -cover
 	if rc == 0 && testing.CoverMode() != "" {
 		c := testing.Coverage()
-		if c < 0.9 {
+		if c < 0.85 {
 			fmt.Println("Tests passed but coverage failed at", c)
 			rc = -1
 		}
