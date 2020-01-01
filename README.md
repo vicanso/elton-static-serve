@@ -47,14 +47,14 @@ func (sf *staticFile) NewReader(file string) (io.Reader, error) {
 }
 
 func main() {
-	d := elton.New()
+	e := elton.New()
 
 	sf := &staticFile{
 		box: box,
 	}
 
 	// static file route
-	d.GET("/static/*file", staticServe.New(sf, staticServe.Config{
+	e.GET("/static/*file", staticServe.New(sf, staticServe.Config{
 		// 客户端缓存一年
 		MaxAge: 365 * 24 * 3600,
 		// 缓存服务器缓存一个小时
@@ -63,7 +63,10 @@ func main() {
 		DisableLastModified: true,
 	}))
 
-	d.ListenAndServe(":7001")
+	err := e.ListenAndServe(":7001")
+	if err != nil {
+		panic(err)
+	}
 }
 ```
 
@@ -78,11 +81,11 @@ import (
 )
 
 func main() {
-	d := elton.New()
+	e := elton.New()
 
 	sf := new(staticServe.FS)
 	// static file route
-	d.GET("/*file", staticServe.New(sf, staticServe.Config{
+	e.GET("/*file", staticServe.New(sf, staticServe.Config{
 		Path: "/tmp",
 		// 客户端缓存一年
 		MaxAge: 365 * 24 * 3600,
@@ -94,6 +97,9 @@ func main() {
 		EnableStrongETag: true,
 	}))
 
-	d.ListenAndServe(":7001")
+	err := e.ListenAndServe(":3000")
+	if err != nil {
+		panic(err)
+	}
 }
 ```
