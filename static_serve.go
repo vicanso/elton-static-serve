@@ -157,6 +157,8 @@ func New(staticFile StaticFile, config Config) elton.Handler {
 	if skipper == nil {
 		skipper = elton.DefaultSkipper
 	}
+	// convert to the different os file path
+	basePath := filepath.Join(config.Path, "")
 	return func(c *elton.Context) (err error) {
 		if skipper(c) {
 			return c.Next()
@@ -176,7 +178,7 @@ func New(staticFile StaticFile, config Config) elton.Handler {
 
 		// 检查文件（路径）是否包括.
 		if config.DenyDot {
-			arr := strings.SplitN(file, "/", -1)
+			arr := strings.SplitN(file, string(filepath.Separator), -1)
 			for _, item := range arr {
 				if item != "" && item[0] == '.' {
 					err = ErrNotAllowAccessDot
@@ -187,7 +189,7 @@ func New(staticFile StaticFile, config Config) elton.Handler {
 
 		file = filepath.Join(config.Path, file)
 		// 避免文件名是有 .. 等导致最终文件路径越过配置的路径
-		if !strings.HasPrefix(file, config.Path) {
+		if !strings.HasPrefix(file, basePath) {
 			err = ErrOutOfPath
 			return
 		}
