@@ -1,5 +1,7 @@
 # elton-static-serve
 
+The middleware has been archived, please use the middleware of [elton](https://github.com/vicanso/elton).
+
 [![Build Status](https://img.shields.io/travis/vicanso/elton-static-serve.svg?label=linux+build)](https://travis-ci.org/vicanso/elton-static-serve)
 
 
